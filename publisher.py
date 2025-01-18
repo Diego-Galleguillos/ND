@@ -1,32 +1,56 @@
 import socket
 import threading
+import time
 
-# Function to handle each client connection
-def handle_client(client_socket):
-    try:
-        # Receive and respond to the client
-        while True:
-            request = client_socket.recv(1024)
-            if not request:
-                break
-            print(f"Received: {request.decode()}")
-            client_socket.send(b'ACK')
-    finally:
-        client_socket.close()
+class client_manager:
+    def __init__(self, id):
+        self.id = id
+        self.message = "Initial message from server."
+
+    def modify_message(self, new_message):
+        self.message = new_message
+    
+    def handle_client(self, client_socket):
+        client_socket.settimeout(1.0)  # Set a timeout for the recv method
+        try:
+            while True:
+                try:
+                    request = client_socket.recv(1024)
+                    if request:
+                        print(f"Received from client {self.id}: {request.decode()}")
+                        response = f"{self.message} - {request.decode()}"
+                        client_socket.send(response.encode())
+                except socket.timeout:
+                    # Timeout reached, send a message even if no request received
+                    response = f"{self.message} - No new message from client"
+                    client_socket.send(response.encode())
+                time.sleep(1)  # Add a small delay to avoid busy-waiting
+        except Exception as e:
+            print(f"An error occurred: {e}")
+        finally:
+            client_socket.close()
 
 def main():
-    # Set up the server
+    con = int(input("Enter the number of connections: "))
+    
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.bind(('0.0.0.0', 9999))
     server.listen(6)
     print("Server listening on port 9999")
 
-    # Accept and handle clients
-    while True:
+    clients = []
+    client_id = 0
+    while client_id < con:
         client_socket, addr = server.accept()
         print(f"Accepted connection from {addr}")
-        client_handler = threading.Thread(target=handle_client, args=(client_socket,))
+        
+        client = client_manager(client_id)
+        clients.append(client)
+
+        client_handler = threading.Thread(target=client.handle_client, args=(client_socket,))
         client_handler.start()
+        client_id += 1
 
 if __name__ == "__main__":
     main()
+
