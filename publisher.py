@@ -50,6 +50,15 @@ def main():
         client_handler = threading.Thread(target=client.handle_client, args=(client_socket,))
         client_handler.start()
         client_id += 1
+    
+    message = input("Enter the new message: ")
+
+    while message != "exit":
+
+        for client in clients:
+            message = input(f"Enter the new message for client {client.id}: ")
+            client.modify_message(message)
+        
 
 if __name__ == "__main__":
     main()

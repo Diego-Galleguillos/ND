@@ -2,7 +2,7 @@ import socket
 
 # Set up the client
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-client_socket.connect(('192.168.86.211', 12345))  # Connect to the server at 192.168.86.211 on port 12345
+client_socket.connect(('192.168.86.203', 12345))  # Connect to the server at 192.168.86.211 on port 12345
 
 message = input("Enter message to send to the server: ")
 client_socket.send(message.encode())
