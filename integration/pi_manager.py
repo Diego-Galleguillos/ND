@@ -53,7 +53,7 @@ class Pi_manager:
         current_state = (self.pin_2a.is_pressed, self.pin_2b.is_pressed)
         self.count2 += 1
 
-    #i want thread to recieve message from server and update a self.message variable constantly
+
     def receive_message(self):
         while True:
             data = self.client_socket.recv(1024).decode()
