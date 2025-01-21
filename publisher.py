@@ -1,15 +1,17 @@
 import socket
 import threading
 import time
+import random
 
 class client_manager:
     def __init__(self, id):
         self.id = id
         self.message = "Initial message from server."
-        self.old_message = ""
+        self.new = True
 
     def modify_message(self, new_message):
-        self.message = new_message + str(time.time)
+        self.message = new_message
+        self.new = True
     
     def handle_client(self, client_socket):
         client_socket.settimeout(1.0)  # Set a timeout for the recv method
@@ -20,14 +22,14 @@ class client_manager:
                     if request:
                         print(f"Received from client {self.id}: {request.decode()}")
                         response = f"{self.message} - {request.decode()}"
-                        if self.message != self.old_message:
+                        if self.new:
                             client_socket.send(self.message.encode())
                 except socket.timeout:
                     # Timeout reached, send a message even if no request received
-                        if self.message != self.old_message:
+                        if self.new:
                             client_socket.send(self.message.encode())
-                self.old_message = self.message
-                time.sleep(1)  # Add a small delay to avoid busy-waiting
+                self.new = False
+                time.sleep(2)  # Add a small delay to avoid busy-waiting
         except Exception as e:
             print(f"An error occurred: {e}")
         finally:
@@ -56,10 +58,9 @@ def main():
     
     message = input("Enter the new message: ")
 
-    while message != "exit":
-
+    while "exit" not in message:
+        message = input(f"Enter the new message for clients: ")
         for client in clients:
-            message = input(f"Enter the new message for client {client.id}: ")
             client.modify_message(message)
         
 

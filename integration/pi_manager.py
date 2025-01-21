@@ -1,4 +1,5 @@
-from gpiozero import Button, RotaryEncoder
+import threading
+from gpiozero import Button
 import time
 from adafruit_motorkit import MotorKit
 import socket
@@ -9,7 +10,8 @@ def steps_for_angle(steps_per_turn, angle):
     return steps
 
 class Pi_manager:
-    def __init__(self):
+    def __init__(self, id):
+        self.id = id
         self.kit = MotorKit()
         self.pin_b = Button(20, pull_up=True)
         self.pin_a = Button(21, pull_up=True)
@@ -23,23 +25,25 @@ class Pi_manager:
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.client_socket.connect(('192.168.0.101', 9999))
         self.message = "Initial message from server."
-        self.steps_per_turn = 600
+        self.steps_per_turn = 580
 
-    def move_angle(self, steps_per_turn, angle, motor_number):
+    def move_angle(self, steps_per_turn, angle, motor_number, direction = 1):
         steps = steps_for_angle(steps_per_turn, angle)
         self.count = 0
         self.count2 = 0
         if motor_number == 1:
             while self.count < steps:
                 print(self.count, self.count2, "in loop")
-                self.kit.motor1.throttle = (steps_per_turn - self.count)/(steps_per_turn*2)
+                self.kit.motor1.throttle = direction * (steps_per_turn - self.count)/(steps_per_turn*2)
                 if   (steps_per_turn - self.count)/(steps_per_turn*2) < 0.15:
-                    self.kit.motor1.throttle = 0.2
+                    self.kit.motor1.throttle = 0.15 * direction
+                time.sleep(0.001)
             self.kit.motor1.throttle = 0
         else:
             while self.count2 < steps:
                 print(self.count2)
-                self.kit.motor2.throttle = (steps_per_turn - self.count2)/(steps_per_turn*2)
+                self.kit.motor2.throttle = (steps_per_turn - self.count2)/(steps_per_turn*2) * direction
+                time.sleep(0.001)
             self.kit.motor2.throttle = 0
 
 
@@ -63,17 +67,18 @@ class Pi_manager:
 
 
     def receive_message(self):
-        while True:
+        while "exit" not in self.message:
             data = self.client_socket.recv(1024).decode()
             self.message = data
             print(self.message)
 
-            if self.message == "exit":
+            if "exit" in self.message:
+                self.stop()
                 break
             try:
-                if self.message[0] == "1":
+                if int(self.message[0]) == self.id or int(self.message[0]) == 0:
                     print("taking step")
-                    self.take_steps(self.steps_per_turn, 1, 1)
+                    self.take_steps(self.steps_per_turn, int(self.message[2]), 1)
             except:
                 print("message too short")
 
@@ -97,8 +102,8 @@ class Pi_manager:
 
 
 if __name__ == "__main__":
-
-    pi = Pi_manager()
+    id = int(input("Enter the id of the pi: "))
+    pi = Pi_manager(id)
     pi.start()
 
     while True:
