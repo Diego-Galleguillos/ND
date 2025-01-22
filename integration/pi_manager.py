@@ -1,8 +1,9 @@
 import threading
-from gpiozero import Button
+from gpiozero import Button, RotaryEncoder
 import time
 from adafruit_motorkit import MotorKit
 import socket
+
 
 
 def steps_for_angle(steps_per_turn, angle):
@@ -13,10 +14,8 @@ class Pi_manager:
     def __init__(self, id):
         self.id = id
         self.kit = MotorKit()
-        self.pin_b = Button(20, pull_up=True)
-        self.pin_a = Button(21, pull_up=True)
-        self.pin_2b = Button(19, pull_up=True)
-        self.pin_2a = Button(16, pull_up=True)
+        self.enc1 = RotaryEncoder(0, 1, max_steps=1200)
+        self.enc2 = RotaryEncoder(16, 19, max_steps=1200)
         self.previous_state = None
         self.count = 0
         self.start_time = time.time()
@@ -25,7 +24,7 @@ class Pi_manager:
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.client_socket.connect(('192.168.0.101', 9999))
         self.message = "Initial message from server."
-        self.steps_per_turn = 580
+        self.steps_per_turn = 300
 
     def move_angle(self, steps_per_turn, angle, motor_number, direction = 1):
         steps = steps_for_angle(steps_per_turn, angle)
@@ -45,26 +44,6 @@ class Pi_manager:
                 self.kit.motor2.throttle = (steps_per_turn - self.count2)/(steps_per_turn*2) * direction
                 time.sleep(0.001)
             self.kit.motor2.throttle = 0
-
-
-
-
-    def pin_a_rising(self):
-        current_state = (self.pin_a.is_pressed, self.pin_b.is_pressed)
-        self.count += 1
-
-    def pin_b_rising(self):
-        current_state = (self.pin_a.is_pressed, self.pin_b.is_pressed)
-        self.count += 1
-
-    def pin_a_rising2(self):
-        current_state = (self.pin_2a.is_pressed, self.pin_2b.is_pressed)
-        self.count2 += 1
-
-    def pin_b_rising2(self):
-        current_state = (self.pin_2a.is_pressed, self.pin_2b.is_pressed)
-        self.count2 += 1
-
 
     def receive_message(self):
         while "exit" not in self.message:
@@ -86,12 +65,16 @@ class Pi_manager:
     def take_steps(self, steps_per_turn, number_of_steps, motor_number):
         self.move_angle(steps_per_turn, number_of_steps*360, motor_number)
 
+    def enc1_rotated(self):
+        self.count = self.enc1.steps
+        
+    def enc2_rotated(self):
+        self.count2 = self.enc2.steps
+
 
     def start(self):
-        self.pin_a.when_pressed = self.pin_a_rising
-        self.pin_b.when_pressed = self.pin_b_rising
-        self.pin_2a.when_pressed = self.pin_a_rising2
-        self.pin_2b.when_pressed = self.pin_b_rising2
+        self.enc1.when_rotated = self.enc1_rotated
+        self.enc2.when_rotated = self.enc2_rotated
 
         self.client_handler = threading.Thread(target=self.receive_message)
         self.client_handler.start()
